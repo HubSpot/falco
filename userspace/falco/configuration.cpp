@@ -292,6 +292,22 @@ void falco_configuration::load_engine_config(const std::string &config_name) {
 		m_modern_ebpf.m_drop_failed_exit =
 		        m_config.get_scalar<bool>("engine.modern_ebpf.drop_failed_exit",
 		                                  DEFAULT_DROP_FAILED_EXIT);
+		if(m_config.is_defined("filters")) {
+			std::list<falco_configuration::filter_config_entry> filters;
+			m_config.get_sequence<std::list<falco_configuration::filter_config_entry>>(filters, std::string("filters"));
+			int filter_index = 0;
+			for(auto it = filters.begin(); it != filters.end() && filter_index < 16; ++it) {
+				m_modern_ebpf.m_filters[filter_index].syscall = it->m_syscall;
+				m_modern_ebpf.m_filters[filter_index].entry.arg_num = it->m_arg_num;
+				m_modern_ebpf.m_filters[filter_index].entry.num_prefixes = (uint16_t)it->m_prefixes.size();
+				int i = 0;
+				for(auto prefix_it = it->m_prefixes.begin(); prefix_it != it->m_prefixes.end() && i < 12; ++prefix_it) {
+					memcpy(&m_modern_ebpf.m_filters[filter_index].entry.prefixes[i][0], prefix_it->c_str(), std::min(prefix_it->length(), (size_t)31));
+					i++;
+				}
+				filter_index++;
+			}
+		}
 		break;
 	case engine_kind_t::REPLAY:
 		m_replay.m_capture_file =

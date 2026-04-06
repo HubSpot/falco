@@ -34,6 +34,7 @@ limitations under the License.
 
 #include "config_falco.h"
 #include "yaml_helper.h"
+#include <driver/modern_bpf/shared_definitions/struct_definitions.h>
 #include "event_drops.h"
 #include "falco_outputs.h"
 
@@ -72,10 +73,17 @@ public:
 		bool m_drop_failed_exit;
 	};
 
+	struct filter_config_entry {
+		std::uint32_t m_syscall;
+		std::uint16_t m_arg_num;
+		std::list<std::string> m_prefixes;
+	};
+
 	struct modern_ebpf_config {
 		uint16_t m_cpus_for_each_buffer;
 		int16_t m_buf_size_preset;
 		bool m_drop_failed_exit;
+		struct filter_config m_filters[16];
 	};
 
 	struct replay_config {
@@ -481,6 +489,39 @@ struct convert<falco_configuration::config_files_config> {
 			std::string strategy = node["strategy"].as<std::string>();
 			rhs.m_strategy = yaml_helper::strategy_from_string(strategy);
 		}
+		return true;
+	}
+};
+
+template<>
+struct convert<falco_configuration::filter_config_entry> {
+	static Node encode(const falco_configuration::filter_config_entry& rhs) {
+		Node node;
+		node["syscall"] = rhs.m_syscall;
+		node["arg"] = rhs.m_arg_num;
+		node["prefixes"] = rhs.m_prefixes;
+		return node;
+	}
+
+	static bool decode(const Node& node, falco_configuration::filter_config_entry& rhs) {
+		if(!node.IsMap()) {
+			return false;
+		}
+
+		if(!node["syscall"]) {
+			return false;
+		}
+		rhs.m_syscall = node["syscall"].as<std::int32_t>();
+
+		if(!node["arg"]) {
+			return false;
+		}
+		rhs.m_arg_num = node["arg"].as<std::int16_t>();
+
+		if(!node["prefixes"]) {
+			return false;
+		}
+		rhs.m_prefixes = node["prefixes"].as<std::list<std::string>>();
 		return true;
 	}
 };
